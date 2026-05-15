@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { WordCard } from '../components/WordCard';
 import { Word } from '../types/Word.ts';
+import { fetchReviewDueWords, fetchStudySummary, WordStudySummary } from '../services/WordProgressService';
 import '../styles/WordStudy.css';
 
 const PART_OF_SPEECH_OPTIONS = [
@@ -17,6 +18,7 @@ const STUDY_MODE_LABELS = {
   normal: '랜덤',
   bookmark: '즐겨찾기',
   wrong: '오답 복습',
+  reviewDue: '오늘 복습',
 } as const;
 
 const WORD_TYPE_LABELS = {
@@ -30,9 +32,11 @@ export const WordStudyPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [wordType, setWordType] = useState<'concepts' | 'regular'>('concepts');
   const [partOfSpeech, setPartOfSpeech] = useState<string>('all');
-  const [studyMode, setStudyMode] = useState<'normal' | 'bookmark' | 'wrong'>('normal');
+  const [studyMode, setStudyMode] = useState<'normal' | 'bookmark' | 'wrong' | 'reviewDue'>('normal');
   const [promptMode, setPromptMode] = useState<'english' | 'meaning'>('english');
   const [showFilters, setShowFilters] = useState(false);
+  const [studySummary, setStudySummary] = useState<WordStudySummary | null>(null);
+  const [summaryAvailable, setSummaryAvailable] = useState(true);
 
   const activePartOfSpeechLabel = useMemo(() => {
     return PART_OF_SPEECH_OPTIONS.find((option) => option.value === partOfSpeech)?.label ?? '모든 품사';
@@ -74,11 +78,40 @@ export const WordStudyPage = () => {
     } satisfies Word;
   };
 
+  const pickReviewDueWord = async () => {
+    const rows = await fetchReviewDueWords(wordType, 30);
+    const filtered = rows.filter((row) => {
+      const posOk = partOfSpeech === 'all' || row.partOfSpeech === partOfSpeech;
+      return posOk;
+    });
+
+    if (filtered.length === 0) {
+      throw new Error('오늘 다시 볼 추천 단어가 없습니다.');
+    }
+
+    return filtered[Math.floor(Math.random() * filtered.length)];
+  };
+
+  const refreshStudySummary = async () => {
+    try {
+      const summary = await fetchStudySummary();
+      setStudySummary(summary);
+      setSummaryAvailable(true);
+    } catch {
+      setSummaryAvailable(false);
+    }
+  };
+
   const fetchRandomWord = async () => {
     setLoading(true);
     setError(null);
 
     try {
+      if (studyMode === 'reviewDue') {
+        setCurrentWord(await pickReviewDueWord());
+        return;
+      }
+
       if (studyMode === 'bookmark' || studyMode === 'wrong') {
         setCurrentWord(await pickRandomProgressWord());
         return;
@@ -112,6 +145,14 @@ export const WordStudyPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wordType, partOfSpeech, studyMode]);
 
+  useEffect(() => {
+    refreshStudySummary();
+  }, []);
+
+  const handleStartReviewDue = () => {
+    setStudyMode('reviewDue');
+  };
+
   return (
     <div className="word-study-container">
       <section className="study-hero" aria-label="현재 학습 설정">
@@ -130,6 +171,21 @@ export const WordStudyPage = () => {
         <span>{activePartOfSpeechLabel}</span>
         <span>{STUDY_MODE_LABELS[studyMode]}</span>
       </div>
+
+      {summaryAvailable && studySummary && (
+        <div className="study-summary-strip" aria-label="오늘 학습 요약">
+          <span>오늘 {studySummary.seenCount}</span>
+          <span>정답률 {studySummary.accuracyRate}%</span>
+          <span>오답 {studySummary.wrongCount}</span>
+          {studySummary.reviewDueCount > 0 ? (
+            <button type="button" onClick={handleStartReviewDue}>
+              복습 {studySummary.reviewDueCount}
+            </button>
+          ) : (
+            <span>복습 0</span>
+          )}
+        </div>
+      )}
 
       {showFilters && (
         <div className="filter-controls">
@@ -155,10 +211,11 @@ export const WordStudyPage = () => {
 
             <div className="inline-selector-row">
               <label className="filter-label" htmlFor="study-mode-select">복습 모드</label>
-              <select id="study-mode-select" value={studyMode} onChange={(e) => setStudyMode(e.target.value as 'normal' | 'bookmark' | 'wrong')}>
+              <select id="study-mode-select" value={studyMode} onChange={(e) => setStudyMode(e.target.value as 'normal' | 'bookmark' | 'wrong' | 'reviewDue')}>
                 <option value="normal">일반 랜덤</option>
                 <option value="bookmark">즐겨찾기 복습</option>
                 <option value="wrong">오답 우선 복습</option>
+                <option value="reviewDue">오늘 복습 추천</option>
               </select>
             </div>
           </div>
@@ -197,6 +254,7 @@ export const WordStudyPage = () => {
               wordType={wordType}
               promptMode={promptMode}
               onNextWord={fetchRandomWord}
+              onStudyResultRecorded={refreshStudySummary}
             />
           ) : (
             <div className="study-empty-state">

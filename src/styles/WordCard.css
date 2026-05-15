@@ -687,3 +687,45 @@
         min-height: 42px;
     }
 }
+
+@media screen and (max-width: 480px) and (max-height: 640px) {
+    .word-card {
+        min-height: 340px;
+        margin-top: 4px;
+        padding: 8px;
+    }
+
+    .word-content {
+        min-height: 216px;
+        padding-bottom: 48px;
+    }
+
+    .quiz-active {
+        min-height: 336px;
+    }
+
+    .quiz-active .word-content {
+        min-height: 212px;
+    }
+
+    .quiz-active .word-main-panel {
+        min-height: 46px;
+    }
+
+    .meaning-choice {
+        min-height: 31px;
+    }
+
+    .meaning-quiz-feedback {
+        min-height: 26px;
+    }
+
+    .auto-next-countdown {
+        min-height: 26px;
+    }
+
+    .mobile-fixed-cta,
+    .mobile-fixed-quiz-btn {
+        min-height: 40px;
+    }
+}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Word } from '../types/Word.ts';
-import { addBookmark, addWrongAnswer, fetchWordProgress, removeBookmark } from '../services/WordProgressService';
+import { addBookmark, addWrongAnswer, fetchWordProgress, recordStudyResult, removeBookmark } from '../services/WordProgressService';
 import '../styles/WordCard.css';
 
 interface WordCardProps {
@@ -8,6 +8,7 @@ interface WordCardProps {
   wordType: 'concepts' | 'regular';
   promptMode: 'english' | 'meaning';
   onNextWord: () => void;
+  onStudyResultRecorded?: () => void;
 }
 
 const defaultWord: Word = {
@@ -34,7 +35,7 @@ try {
 
 const uniqueValues = (values: string[]) => values.filter((value, index, self) => value.trim() && self.indexOf(value) === index);
 
-export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardProps) => {
+export const WordCard = ({ word, wordType, promptMode, onNextWord, onStudyResultRecorded }: WordCardProps) => {
   const currentWord = word || defaultWord;
 
   const [showAnswer, setShowAnswer] = useState(false);
@@ -301,8 +302,21 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
       // ignore
     }
 
+    let studySummaryChanged = false;
+    try {
+      await recordStudyResult(currentWord, wordType, isCorrect ? 'correct' : 'wrong');
+      studySummaryChanged = true;
+    } catch (error) {
+      setProgressError(error instanceof Error ? error.message : '학습 기록 저장 중 오류가 발생했습니다.');
+    }
+
     if (!isCorrect) {
       await handleMarkWrong(true);
+      studySummaryChanged = true;
+    }
+
+    if (studySummaryChanged) {
+      onStudyResultRecorded?.();
     }
 
     clearQuizTimers();
