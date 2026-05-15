@@ -233,7 +233,19 @@
     line-height: 1.35;
 }
 
-.meaning-choice span {
+.meaning-choice .choice-text {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.meaning-choice:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.meaning-choice .choice-index {
     width: 24px;
     height: 24px;
     display: inline-flex;
@@ -249,6 +261,32 @@
 .meaning-choice.selected {
     border-color: var(--card-primary);
     background: #e9f2ff;
+}
+
+.meaning-choice.correct-choice {
+    border-color: #22c55e;
+    background: #dcfce7;
+    color: #14532d;
+}
+
+.meaning-choice.correct-choice .choice-index {
+    background: #16a34a;
+    color: #ffffff;
+}
+
+.meaning-choice.wrong-choice {
+    border-color: #fb7185;
+    background: #ffe4e6;
+    color: #881337;
+}
+
+.meaning-choice.wrong-choice .choice-index {
+    background: #e11d48;
+    color: #ffffff;
+}
+
+.meaning-choice.dimmed-choice {
+    opacity: 0.52;
 }
 
 .meaning-quiz-feedback {
@@ -422,7 +460,7 @@
     border-color: #334155;
 }
 
-:root[data-mantine-color-scheme='dark'] .meaning-choice span {
+:root[data-mantine-color-scheme='dark'] .meaning-choice .choice-index {
     background: #1e3a5f;
     color: #bfdbfe;
 }
@@ -430,6 +468,32 @@
 :root[data-mantine-color-scheme='dark'] .meaning-choice.selected {
     background: #1e3a5f;
     border-color: #60a5fa;
+}
+
+:root[data-mantine-color-scheme='dark'] .meaning-choice.correct-choice {
+    background: rgba(22, 101, 52, 0.72);
+    border-color: #22c55e;
+    color: #dcfce7;
+}
+
+:root[data-mantine-color-scheme='dark'] .meaning-choice.correct-choice .choice-index {
+    background: #22c55e;
+    color: #052e16;
+}
+
+:root[data-mantine-color-scheme='dark'] .meaning-choice.wrong-choice {
+    background: rgba(127, 29, 29, 0.72);
+    border-color: #fb7185;
+    color: #ffe4e6;
+}
+
+:root[data-mantine-color-scheme='dark'] .meaning-choice.wrong-choice .choice-index {
+    background: #fb7185;
+    color: #450a0a;
+}
+
+:root[data-mantine-color-scheme='dark'] .meaning-choice.dimmed-choice {
+    opacity: 0.46;
 }
 
 :root[data-mantine-color-scheme='dark'] .auto-next-countdown {
@@ -510,7 +574,7 @@
         border-radius: 11px;
     }
 
-    .meaning-choice span {
+    .meaning-choice .choice-index {
         width: 22px;
         height: 22px;
         font-size: 11px;

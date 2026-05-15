@@ -327,6 +327,26 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
   };
 
   const correctRate = sessionQuizTotal > 0 ? Math.round((sessionQuizCorrect / sessionQuizTotal) * 100) : null;
+  const correctAnswer = quizTarget === 'meaning' ? currentWord.meaning : currentWord.word;
+  const getChoiceClassName = (choice: string) => {
+    const classes = ['meaning-choice'];
+    const hasAnswered = quizSelected !== null;
+
+    if (quizSelected === choice) {
+      classes.push('selected');
+    }
+    if (hasAnswered && choice === correctAnswer) {
+      classes.push('correct-choice');
+    }
+    if (hasAnswered && quizSelected === choice && choice !== correctAnswer) {
+      classes.push('wrong-choice');
+    }
+    if (hasAnswered && quizSelected !== choice && choice !== correctAnswer) {
+      classes.push('dimmed-choice');
+    }
+
+    return classes.join(' ');
+  };
 
   return (
     <div
@@ -380,12 +400,12 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
               {!quizLoading && quizChoices.map((choice, idx) => (
                 <button
                   key={`${choice}-${idx}`}
-                  className={`meaning-choice ${quizSelected === choice ? 'selected' : ''}`}
+                  className={getChoiceClassName(choice)}
                   onClick={() => handlePickChoice(choice)}
                   disabled={quizSelected !== null}
                 >
-                  <span>{idx + 1}</span>
-                  {choice}
+                  <span className="choice-index">{idx + 1}</span>
+                  <span className="choice-text">{choice}</span>
                 </button>
               ))}
             </div>
