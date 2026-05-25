@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Word } from '../types/Word.ts';
-import { addBookmark, addWrongAnswer, fetchWordProgress, removeBookmark } from '../services/WordProgressService';
+import { addBookmark, addWrongAnswer, fetchWordProgress, recordStudyResult, removeBookmark } from '../services/WordProgressService';
 import '../styles/WordCard.css';
 
 interface WordCardProps {
@@ -8,6 +8,7 @@ interface WordCardProps {
   wordType: 'concepts' | 'regular';
   promptMode: 'english' | 'meaning';
   onNextWord: () => void;
+  onStudyResultRecorded?: () => void;
 }
 
 const defaultWord: Word = {
@@ -28,11 +29,13 @@ try {
   if (Number.isFinite(t)) sessionQuizTotalCache = t;
   if (Number.isFinite(c)) sessionQuizCorrectCache = c;
   quizModeEnabledCache = m === '1';
-} catch (_) {
-  // ignore
+} catch {
+  // 세션 스토리지를 사용할 수 없는 환경에서는 메모리 상태만 사용한다.
 }
 
-export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardProps) => {
+const uniqueValues = (values: string[]) => values.filter((value, index, self) => value.trim() && self.indexOf(value) === index);
+
+export const WordCard = ({ word, wordType, promptMode, onNextWord, onStudyResultRecorded }: WordCardProps) => {
   const currentWord = word || defaultWord;
 
   const [showAnswer, setShowAnswer] = useState(false);
@@ -50,8 +53,8 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
   const [quizModeEnabled, setQuizModeEnabled] = useState(quizModeEnabledCache);
   const [autoNextCountdown, setAutoNextCountdown] = useState<number | null>(null);
 
-  const [sessionQuizTotal, setSessionQuizTotal] = useState(0);
-  const [sessionQuizCorrect, setSessionQuizCorrect] = useState(0);
+  const [sessionQuizTotal, setSessionQuizTotal] = useState(sessionQuizTotalCache);
+  const [sessionQuizCorrect, setSessionQuizCorrect] = useState(sessionQuizCorrectCache);
 
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
@@ -62,23 +65,15 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
   const [gestureHint, setGestureHint] = useState<string | null>(null);
 
   useEffect(() => {
-    setSessionQuizTotal(sessionQuizTotalCache);
-    setSessionQuizCorrect(sessionQuizCorrectCache);
-
     return () => {
-      if (quizAutoNextTimerRef.current !== null) {
-        window.clearTimeout(quizAutoNextTimerRef.current);
-        quizAutoNextTimerRef.current = null;
-      }
-      if (quizCountdownIntervalRef.current !== null) {
-        window.clearInterval(quizCountdownIntervalRef.current);
-        quizCountdownIntervalRef.current = null;
-      }
+      clearQuizTimers();
     };
   }, []);
 
   useEffect(() => {
     loadProgress();
+    setShowAnswer(false);
+    clearQuizState();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWord.word, currentWord.meaning, currentWord.partOfSpeech, currentWord.seq, wordType]);
 
@@ -93,7 +88,7 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
     quizModeEnabledCache = quizModeEnabled;
     try {
       sessionStorage.setItem('quiz_mode_enabled', quizModeEnabled ? '1' : '0');
-    } catch (_) {
+    } catch {
       // ignore
     }
   }, [quizModeEnabled]);
@@ -102,13 +97,30 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
     if (quizModeEnabled) {
       buildChoiceQuiz();
     } else {
-      setShowChoiceQuiz(false);
-      setQuizChoices([]);
-      setQuizSelected(null);
-      setQuizResult(null);
+      clearQuizState();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWord.word, currentWord.meaning, currentWord.partOfSpeech, currentWord.seq, quizModeEnabled]);
+  }, [currentWord.word, currentWord.meaning, currentWord.partOfSpeech, currentWord.seq, quizModeEnabled, wordType]);
+
+  const clearQuizTimers = () => {
+    if (quizAutoNextTimerRef.current !== null) {
+      window.clearTimeout(quizAutoNextTimerRef.current);
+      quizAutoNextTimerRef.current = null;
+    }
+    if (quizCountdownIntervalRef.current !== null) {
+      window.clearInterval(quizCountdownIntervalRef.current);
+      quizCountdownIntervalRef.current = null;
+    }
+  };
+
+  const clearQuizState = () => {
+    clearQuizTimers();
+    setShowChoiceQuiz(false);
+    setQuizChoices([]);
+    setQuizSelected(null);
+    setQuizResult(null);
+    setAutoNextCountdown(null);
+  };
 
   const loadProgress = async () => {
     if (!currentWord || currentWord.seq === 0) return;
@@ -120,6 +132,8 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
       setBookmarked(progress.bookmarked);
       setWrongCount(progress.wrongCount);
     } catch (error) {
+      setBookmarked(false);
+      setWrongCount(0);
       setProgressError(error instanceof Error ? error.message : '진행 상태를 불러오지 못했습니다.');
     } finally {
       setProgressLoading(false);
@@ -127,21 +141,8 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
   };
 
   const handleNextWord = () => {
-    if (quizAutoNextTimerRef.current !== null) {
-      window.clearTimeout(quizAutoNextTimerRef.current);
-      quizAutoNextTimerRef.current = null;
-    }
-    if (quizCountdownIntervalRef.current !== null) {
-      window.clearInterval(quizCountdownIntervalRef.current);
-      quizCountdownIntervalRef.current = null;
-    }
-
-    setAutoNextCountdown(null);
+    clearQuizState();
     setShowAnswer(false);
-    setShowChoiceQuiz(false);
-    setQuizChoices([]);
-    setQuizSelected(null);
-    setQuizResult(null);
     onNextWord();
   };
 
@@ -210,7 +211,8 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
 
     try {
       const wrong = await addWrongAnswer(currentWord, wordType);
-      setWrongCount(wrong.wrongCount ?? wrongCount + 1);
+      const nextWrongCount = wrong.wrongCount ?? wrongCount + 1;
+      setWrongCount(nextWrongCount);
       lastWrongKeyRef.current = key;
       lastWrongTimeRef.current = now;
       setProgressError(null);
@@ -222,50 +224,54 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
 
   const shuffle = <T,>(arr: T[]): T[] => [...arr].sort(() => Math.random() - 0.5);
 
+  const loadQuizCandidates = async (): Promise<Word[]> => {
+    const params = new URLSearchParams({
+      type: wordType,
+      seq: String(currentWord.seq),
+      limit: '8',
+    });
+    if (currentWord.partOfSpeech) {
+      params.set('partOfSpeech', currentWord.partOfSpeech);
+    }
+
+    const response = await fetch(`/api/words/quiz-choices?${params.toString()}`);
+    if (response.ok) {
+      return response.json();
+    }
+
+    const startSeq = Math.max(1, currentWord.seq - 250);
+    const endSeq = currentWord.seq + 250;
+    const fallback = await fetch(`/api/words/range?type=${wordType}&startSeq=${startSeq}&endSeq=${endSeq}`);
+    if (!fallback.ok) throw new Error('퀴즈 선택지를 불러오지 못했습니다.');
+    return fallback.json();
+  };
+
   const buildChoiceQuiz = async () => {
     if (!currentWord || currentWord.seq === 0) return;
 
+    clearQuizTimers();
     setShowChoiceQuiz(true);
     setQuizLoading(true);
     setQuizResult(null);
     setQuizSelected(null);
+    setAutoNextCountdown(null);
 
     try {
-      const startSeq = Math.max(1, currentWord.seq - 250);
-      const endSeq = currentWord.seq + 250;
-      const response = await fetch(`/api/words/range?startSeq=${startSeq}&endSeq=${endSeq}`);
-      if (!response.ok) throw new Error('퀴즈 선택지를 불러오지 못했습니다.');
+      const words = await loadQuizCandidates();
+      const target: 'meaning' | 'word' = promptMode === 'english' ? 'meaning' : 'word';
+      const correctAnswer = target === 'meaning' ? currentWord.meaning : currentWord.word;
+      const distractors = uniqueValues(
+        words
+          .filter((candidate) => candidate.seq !== currentWord.seq || candidate.word !== currentWord.word)
+          .map((candidate) => target === 'meaning' ? candidate.meaning : candidate.word)
+          .filter((value) => value !== correctAnswer)
+      );
 
-      const words: Word[] = await response.json();
-      const samePos = words.filter((w) => w.partOfSpeech === currentWord.partOfSpeech);
+      const picked = shuffle(distractors).slice(0, 2);
+      if (picked.length < 2) throw new Error('유사 보기 생성에 실패했어요. 다시 눌러주세요.');
 
-      if (promptMode === 'english') {
-        // 영단어 먼저 모드의 영단어 퀴즈 -> 보기는 뜻
-        const distractors = samePos
-          .filter((w) => w.meaning !== currentWord.meaning)
-          .map((w) => w.meaning)
-          .filter((v, i, self) => self.indexOf(v) === i)
-          .slice(0, 40);
-
-        const picked = shuffle(distractors).slice(0, 2);
-        if (picked.length < 2) throw new Error('유사 보기 생성에 실패했어요. 다시 눌러주세요.');
-
-        setQuizTarget('meaning');
-        setQuizChoices(shuffle([currentWord.meaning, ...picked]));
-      } else {
-        // 뜻 먼저 모드의 뜻 퀴즈 -> 보기는 영단어
-        const distractors = samePos
-          .filter((w) => w.word !== currentWord.word)
-          .map((w) => w.word)
-          .filter((v, i, self) => self.indexOf(v) === i)
-          .slice(0, 40);
-
-        const picked = shuffle(distractors).slice(0, 2);
-        if (picked.length < 2) throw new Error('유사 보기 생성에 실패했어요. 다시 눌러주세요.');
-
-        setQuizTarget('word');
-        setQuizChoices(shuffle([currentWord.word, ...picked]));
-      }
+      setQuizTarget(target);
+      setQuizChoices(shuffle([correctAnswer, ...picked]));
     } catch (error) {
       setProgressError(error instanceof Error ? error.message : '유사 보기 퀴즈 생성 중 오류가 발생했습니다.');
       setShowChoiceQuiz(false);
@@ -292,21 +298,28 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
     try {
       sessionStorage.setItem('quiz_total', String(nextTotal));
       sessionStorage.setItem('quiz_correct', String(nextCorrect));
-    } catch (_) {
+    } catch {
       // ignore
+    }
+
+    let studySummaryChanged = false;
+    try {
+      await recordStudyResult(currentWord, wordType, isCorrect ? 'correct' : 'wrong');
+      studySummaryChanged = true;
+    } catch (error) {
+      setProgressError(error instanceof Error ? error.message : '학습 기록 저장 중 오류가 발생했습니다.');
     }
 
     if (!isCorrect) {
       await handleMarkWrong(true);
+      studySummaryChanged = true;
     }
 
-    if (quizAutoNextTimerRef.current !== null) {
-      window.clearTimeout(quizAutoNextTimerRef.current);
-    }
-    if (quizCountdownIntervalRef.current !== null) {
-      window.clearInterval(quizCountdownIntervalRef.current);
+    if (studySummaryChanged) {
+      onStudyResultRecorded?.();
     }
 
+    clearQuizTimers();
     setAutoNextCountdown(3);
     quizCountdownIntervalRef.current = window.setInterval(() => {
       setAutoNextCountdown((prev) => {
@@ -327,97 +340,108 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
     }, 3000);
   };
 
+  const correctRate = sessionQuizTotal > 0 ? Math.round((sessionQuizCorrect / sessionQuizTotal) * 100) : null;
+  const correctAnswer = quizTarget === 'meaning' ? currentWord.meaning : currentWord.word;
+  const getChoiceClassName = (choice: string) => {
+    const classes = ['meaning-choice'];
+    const hasAnswered = quizSelected !== null;
+
+    if (quizSelected === choice) {
+      classes.push('selected');
+    }
+    if (hasAnswered && choice === correctAnswer) {
+      classes.push('correct-choice');
+    }
+    if (hasAnswered && quizSelected === choice && choice !== correctAnswer) {
+      classes.push('wrong-choice');
+    }
+    if (hasAnswered && quizSelected !== choice && choice !== correctAnswer) {
+      classes.push('dimmed-choice');
+    }
+
+    return classes.join(' ');
+  };
+
   return (
     <div
-      className={`word-card ${!showAnswer ? 'clickable' : ''}`}
+      className={`word-card ${showChoiceQuiz ? 'quiz-active' : ''} ${!showAnswer ? 'clickable' : ''}`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <div className="action-area">
-        {!showAnswer ? (
-          <p
-            className="hint clickable-hint"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAnswer(true);
-            }}
-          >
-            (확인)
-          </p>
-        ) : (
-          <button
-            className="next-word-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              handleNextWord();
-            }}
-          >
-            다음 단어
-          </button>
-        )}
-      </div>
-
-      <div className="progress-actions">
-        <button className={`bookmark-button ${bookmarked ? 'active' : ''}`} onClick={handleToggleBookmark}>
-          {bookmarked ? '★ 즐겨찾기됨' : '☆ 즐겨찾기'}
+      <div className="card-top-row">
+        <button
+          className={`bookmark-button ${bookmarked ? 'active' : ''}`}
+          onClick={handleToggleBookmark}
+          disabled={progressLoading}
+        >
+          {bookmarked ? '★ 저장됨' : '☆ 즐겨찾기'}
+        </button>
+        <button className="wrong-button" onClick={() => handleMarkWrong()} disabled={progressLoading}>
+          오답 저장{wrongCount > 0 ? ` ${wrongCount}` : ''}
         </button>
       </div>
 
-      {progressLoading && <div className="progress-status">진행 상태 불러오는 중...</div>}
       <div className="quiz-accuracy-status">
-        퀴즈 정답률(세션): {sessionQuizTotal > 0 ? `${Math.round((sessionQuizCorrect / sessionQuizTotal) * 100)}% (${sessionQuizCorrect}/${sessionQuizTotal})` : '아직 없음'}
+        <span>세션 정답률</span>
+        <strong>{correctRate === null ? '아직 없음' : `${correctRate}%`}</strong>
+        {sessionQuizTotal > 0 && <em>{sessionQuizCorrect}/{sessionQuizTotal}</em>}
       </div>
+      {progressLoading && <div className="progress-status">진행 상태 불러오는 중...</div>}
       {progressError && <div className="progress-error">{progressError}</div>}
 
       <div className="word-content">
-        {!showAnswer ? (
-          <div className="word-question">
-            {promptMode === 'english' ? currentWord.word : currentWord.meaning}
-            <div className="part-of-speech">{promptMode === 'english' && currentWord.partOfSpeech}</div>
-          </div>
-        ) : (
-          <>
+        <div className="word-main-panel">
+          {!showAnswer ? (
+            <div className="word-question">
+              {promptMode === 'english' ? currentWord.word : currentWord.meaning}
+              {promptMode === 'english' && <span className="part-of-speech">{currentWord.partOfSpeech}</span>}
+            </div>
+          ) : (
             <div className="word-answer">
               <div className="english-word">{currentWord.word} <span className="part-of-speech">{currentWord.partOfSpeech}</span></div>
               {!showChoiceQuiz && <div className="korean-meaning">{currentWord.meaning}</div>}
             </div>
-
-          </>
-        )}
+          )}
+        </div>
 
         {showChoiceQuiz && (
           <div className="meaning-quiz-box">
             <div className="meaning-quiz-title">
-              {quizTarget === 'meaning' ? '뜻 맞히기 퀴즈 (1개 정답)' : '영단어 맞히기 퀴즈 (1개 정답)'}
+              {quizTarget === 'meaning' ? '뜻 맞히기 퀴즈' : '영단어 맞히기 퀴즈'}
             </div>
             <div className="meaning-quiz-options">
               {quizLoading && <div className="meaning-quiz-loading">퀴즈 보기 생성 중...</div>}
               {!quizLoading && quizChoices.map((choice, idx) => (
                 <button
                   key={`${choice}-${idx}`}
-                  className={`meaning-choice ${quizSelected === choice ? 'selected' : ''}`}
+                  className={getChoiceClassName(choice)}
                   onClick={() => handlePickChoice(choice)}
                   disabled={quizSelected !== null}
                 >
-                  {idx + 1}. {choice}
+                  <span className="choice-index">{idx + 1}</span>
+                  <span className="choice-text">{choice}</span>
                 </button>
               ))}
             </div>
-            {quizResult && (
-              <>
-                <div className={`meaning-quiz-result ${quizResult}`}>
-                  {quizResult === 'correct' ? '정답입니다! 🎉' : `오답입니다. 정답: ${quizTarget === 'meaning' ? currentWord.meaning : currentWord.word}`}
-                </div>
-                {autoNextCountdown !== null && (
-                  <div className="auto-next-countdown">{autoNextCountdown}초 후 다음 단어로 이동</div>
-                )}
-              </>
-            )}
+            <div className={`meaning-quiz-feedback ${quizResult ? 'visible' : ''}`}>
+              <div className={`meaning-quiz-result ${quizResult ?? ''}`}>
+                {quizResult === 'correct' && '정답입니다!'}
+                {quizResult === 'wrong' && `오답입니다. 정답: ${quizTarget === 'meaning' ? currentWord.meaning : currentWord.word}`}
+              </div>
+              <button
+                className="auto-next-countdown"
+                onClick={handleNextWord}
+                disabled={autoNextCountdown === null}
+                aria-hidden={autoNextCountdown === null}
+              >
+                {autoNextCountdown ?? 3}초 후 다음 · 바로 넘기기
+              </button>
+            </div>
           </div>
         )}
 
         <div className="swipe-guide">
-          ← 왼쪽 스와이프: 다음 단어 · 오른쪽 스와이프: 정답 보기 →
+          ← 다음 단어 · 정답 보기 →
         </div>
 
         <div className="mobile-fixed-cta-wrap inline-cta-wrap">
@@ -442,14 +466,12 @@ export const WordCard = ({ word, wordType, promptMode, onNextWord }: WordCardPro
             }}
             disabled={quizLoading}
           >
-            {quizLoading ? '생성 중...' : `퀴즈 모드 ${quizModeEnabled ? 'ON' : 'OFF'}`}
+            {quizLoading ? '생성 중...' : `퀴즈 ${quizModeEnabled ? 'ON' : 'OFF'}`}
           </button>
         </div>
       </div>
 
       {gestureHint && <div className="gesture-toast">{gestureHint}</div>}
-
-
     </div>
   );
 };

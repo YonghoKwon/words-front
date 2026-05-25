@@ -5,6 +5,14 @@ export interface WordProgress {
   wrongCount: number;
 }
 
+export interface WordStudySummary {
+  seenCount: number;
+  correctCount: number;
+  wrongCount: number;
+  accuracyRate: number;
+  reviewDueCount: number;
+}
+
 interface WordPayload {
   wordType: 'concepts' | 'regular';
   seq: number;
@@ -78,6 +86,47 @@ export async function addWrongAnswer(word: Word, wordType: 'concepts' | 'regular
 
   if (!response.ok) {
     throw new Error('오답 저장에 실패했습니다.');
+  }
+
+  return response.json();
+}
+
+export async function recordStudyResult(word: Word, wordType: 'concepts' | 'regular', result: 'correct' | 'wrong') {
+  const response = await fetch('/api/words/study-results', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...toPayload(word, wordType), result }),
+  });
+
+  if (!response.ok) {
+    throw new Error('학습 기록 저장에 실패했습니다.');
+  }
+
+  return response.json();
+}
+
+export async function fetchStudySummary(date?: string): Promise<WordStudySummary> {
+  const params = new URLSearchParams();
+  if (date) params.set('date', date);
+
+  const query = params.toString();
+  const response = await fetch(`/api/words/study-summary${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw new Error('학습 요약을 불러오지 못했습니다.');
+  }
+
+  return response.json();
+}
+
+export async function fetchReviewDueWords(wordType: 'concepts' | 'regular', limit = 30): Promise<Word[]> {
+  const params = new URLSearchParams({
+    type: wordType,
+    limit: String(limit),
+  });
+
+  const response = await fetch(`/api/words/review-due?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error('복습 추천 단어를 불러오지 못했습니다.');
   }
 
   return response.json();

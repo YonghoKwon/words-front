@@ -2,7 +2,7 @@
 .word-list-container {
     max-width: 800px;
     margin: 0 auto;
-    padding: var(--spacing-xl);
+    padding: 10px 6px 18px;
 }
 
 .word-list {
@@ -25,24 +25,28 @@
 }
 
 .list-enhance-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 110px;
     gap: 8px;
     margin: 10px 0;
 }
 
 .list-search-input {
-    flex: 1;
-    min-height: 38px;
+    width: 100%;
+    min-height: 44px;
     border: 1px solid var(--border-light);
-    border-radius: 8px;
-    padding: 0 10px;
+    border-radius: 12px;
+    padding: 0 12px;
     background: var(--bg-light);
     color: var(--text-dark);
+    font-size: 14px;
+    font-weight: 700;
 }
 
 .word-item {
     display: flex;
-    padding: 10px;
+    align-items: center;
+    padding: 10px 12px;
     border-radius: 8px;
     background-color: var(--bg-light);
     box-shadow: var(--shadow);
@@ -67,7 +71,7 @@
     background-color: var(--primary-color);
     color: white;
     font-weight: bold;
-    margin-right: var(--spacing-md);
+    margin-right: 10px;
 }
 
 .word-list-content {
@@ -95,16 +99,28 @@
 
 /* 범위 컨트롤 스타일 */
 .range-controls {
-    margin: var(--spacing-md) 0;
+    display: grid;
+    gap: 8px;
+    margin: 0 0 10px;
     background-color: var(--bg-light);
-    border-radius: 8px;
-    padding: var(--spacing-md);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 10px;
     box-shadow: var(--shadow);
 }
 
 .range-toggle {
-    display: flex;
-    margin-bottom: var(--spacing-md);
+    display: grid;
+    gap: 6px;
+    margin-bottom: 0;
+}
+
+.mode-toggle {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+.range-toggle:not(.mode-toggle) {
+    grid-template-columns: repeat(2, 1fr);
 }
 
 .mode-toggle .range-button {
@@ -113,24 +129,29 @@
 
 .range-button {
     flex: 1;
-    padding: var(--spacing-sm);
+    min-height: 42px;
+    padding: 0 10px;
     background-color: transparent;
-    border: 1px solid var(--primary-color);
-    color: var(--primary-color);
+    border: 1px solid #34547d;
+    border-radius: 12px;
+    color: #93c5fd;
     cursor: pointer;
     transition: all 0.2s;
+    font-size: 14px;
+    font-weight: 850;
 }
 
 .range-button:first-child {
-    border-radius: 4px 0 0 4px;
+    border-radius: 12px;
 }
 
 .range-button:last-child {
-    border-radius: 0 4px 4px 0;
+    border-radius: 12px;
 }
 
 .range-button.active {
-    background-color: var(--primary-color);
+    background-color: #2563eb;
+    border-color: #60a5fa;
     color: white;
 }
 
@@ -155,21 +176,23 @@
 }
 
 .input-group input {
-    padding: 8px;
+    min-height: 42px;
+    padding: 0 10px;
     border: 1px solid var(--border-light);
-    border-radius: 4px;
+    border-radius: 12px;
     font-size: 1rem;
 }
 
 .search-button {
-    padding: 8px 16px;
+    min-height: 42px;
+    padding: 0 16px;
     background-color: var(--primary-color);
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 12px;
     cursor: pointer;
     transition: background-color 0.2s;
-    height: 38px;
+    font-weight: 850;
 }
 
 .search-button:hover {
@@ -182,8 +205,7 @@
 }
 
 .pagination-controls {
-    display: flex;
-    flex-direction: column;
+    display: grid;
     gap: 8px;
 }
 
@@ -198,14 +220,16 @@
 }
 
 .page-button {
-    padding: 8px 12px;
-    background-color: var(--primary-color);
+    min-height: 42px;
+    padding: 0 12px;
+    background-color: #2563eb;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 12px;
     cursor: pointer;
     transition: background-color 0.2s;
     font-size: 0.9rem;
+    font-weight: 850;
     flex: 1;
     text-align: center;
 }
@@ -215,13 +239,20 @@
 }
 
 .page-button:disabled {
-    background-color: var(--text-light);
+    background-color: #334155;
+    color: #94a3b8;
     cursor: not-allowed;
 }
 
 .current-range {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 34px;
     text-align: center;
-    padding: 0 var(--spacing-md);
+    padding: 0 12px;
+    border-radius: 10px;
+    background: rgba(96, 165, 250, 0.10);
     color: var(--text-medium);
     font-weight: bold;
     flex-shrink: 0;
@@ -229,22 +260,22 @@
 
 .no-words {
     text-align: center;
-    padding: var(--spacing-xl);
+    padding: 28px 18px;
     color: var(--text-light);
     font-style: italic;
 }
 
 .loading {
     text-align: center;
-    padding: var(--spacing-md);
+    padding: 16px;
     color: var(--text-medium);
     font-style: italic;
 }
 
 .error-message {
     color: #e74c3c;
-    margin: var(--spacing-md) auto;
-    padding: var(--spacing-md);
+    margin: 12px auto;
+    padding: 12px;
     border-radius: 5px;
     background-color: #fadbd8;
     max-width: 400px;
@@ -253,73 +284,74 @@
 
 .word-stats {
     text-align: center;
-    margin: var(--spacing-md) 0;
-    padding: var(--spacing-sm);
+    margin: 10px 0;
+    padding: 9px 12px;
     background-color: rgba(52, 152, 219, 0.1);
-    border-radius: 4px;
+    border-radius: 10px;
     font-size: 0.9rem;
     color: var(--text-medium);
 }
 
 /* 다크모드 대응 */
-@media (prefers-color-scheme: dark) {
+:root[data-mantine-color-scheme='dark'] {
     .word-item, .range-controls {
-        background-color: var(--dark-bg);
-        box-shadow: var(--dark-shadow);
+        background-color: #111827;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
     }
 
     .word-english {
-        color: var(--dark-text);
+        color: #f3f4f6;
     }
 
     .list-search-input {
-        background-color: var(--dark-bg);
-        border-color: var(--dark-border);
-        color: var(--dark-text);
+        background-color: #111827;
+        border-color: #334155;
+        color: #f3f4f6;
     }
 
     .word-meaning {
-        color: var(--dark-text-light);
+        color: #cbd5e1;
     }
 
     .input-group label {
-        color: var(--dark-text-light);
+        color: #cbd5e1;
     }
 
     .input-group input {
-        background-color: var(--dark-bg);
-        border-color: var(--dark-border);
-        color: var(--dark-text);
+        background-color: #111827;
+        border-color: #334155;
+        color: #f3f4f6;
     }
 
     .current-range {
-        color: var(--dark-text-light);
+        color: #cbd5e1;
     }
 
     .no-words, .loading {
-        color: var(--dark-text-light);
+        color: #cbd5e1;
     }
 
     .range-button {
-        border-color: var(--primary-hover);
-        color: var(--primary-hover);
+        border-color: #34547d;
+        color: #93c5fd;
     }
 
     .range-button.active {
-        background-color: var(--primary-hover);
-        color: var(--dark-text);
+        background-color: #2563eb;
+        color: #ffffff;
     }
 
     .page-button, .search-button {
-        background-color: var(--primary-hover);
+        background-color: #2563eb;
     }
 
     .page-button:hover, .search-button:hover {
-        background-color: var(--primary-color);
+        background-color: #1d4ed8;
     }
 
     .page-button:disabled, .search-button:disabled {
-        background-color: var(--dark-border);
+        background-color: #334155;
+        color: #94a3b8;
     }
 
     .error-message {
@@ -329,27 +361,32 @@
 
     .word-stats {
         background-color: rgba(52, 152, 219, 0.2);
-        color: var(--dark-text-light);
+        color: #cbd5e1;
     }
 }
 
 /* 모바일 대응 */
 @media screen and (max-width: 480px) {
     .word-list-container {
-        padding: var(--spacing-md);
+        padding: 4px 0 14px;
+    }
+
+    .range-controls {
+        padding: 8px;
+        border-radius: 12px;
     }
 
     .list-enhance-row {
-        flex-direction: column;
+        grid-template-columns: 1fr;
         gap: 6px;
     }
 
     .list-search-input {
-        min-height: 36px;
+        min-height: 42px;
     }
 
     .word-item {
-        padding: var(--spacing-sm);
+        padding: 10px;
     }
 
     .word-number {
@@ -375,12 +412,11 @@
     }
 
     .pagination-controls {
-        flex-direction: column;
-        gap: var(--spacing-sm);
+        gap: 8px;
     }
 
     .page-button {
         width: 100%;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
     }
 }

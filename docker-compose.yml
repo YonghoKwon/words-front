@@ -1,0 +1,29 @@
+services:
+  words-back:
+    image: teps-words-back:local
+    build:
+      context: ../words-back
+    container_name: words-back
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      # By default the backend container connects to the existing local MySQL
+      # published on the Mac host at localhost:3306.
+      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL:-jdbc:mysql://host.docker.internal:3306/springboot?useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Seoul}
+      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME:-root}
+      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD:-1234}
+    ports:
+      - "8080:8080"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  words-front:
+    image: teps-words-front:local
+    build:
+      context: .
+    container_name: words-front
+    restart: unless-stopped
+    depends_on:
+      - words-back
+    ports:
+      - "5173:80"

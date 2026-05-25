@@ -1,8 +1,16 @@
-import { useState, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Word } from '../types/Word.ts';
 import '../styles/WordList.css';
 
 type ListMode = 'all' | 'bookmark' | 'wrong';
+
+type ProgressWordItem = {
+  seq: number;
+  word: string;
+  partOfSpeech?: string;
+  meaning: string;
+  wrongCount?: number;
+};
 
 const RANGE_SIZE = 20;
 const CLIENT_PAGE_SIZE = 20;
@@ -27,8 +35,9 @@ export const WordListPage = () => {
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const wordListRef = useRef<HTMLDivElement | null>(null);
+  const prevCustomRangeModeRef = useRef(customRangeMode);
 
-  const fetchWords = async (start: number, end: number) => {
+  const fetchWords = useCallback(async (start: number, end: number) => {
     setLoading(true);
     setError(null);
 
@@ -61,9 +70,9 @@ export const WordListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadRangeWords = async (start: number, end: number) => {
+  const loadRangeWords = useCallback(async (start: number, end: number) => {
     const newWords = await fetchWords(start, end);
     if (newWords.length > 0) {
       setWords(newWords);
@@ -71,20 +80,20 @@ export const WordListPage = () => {
     } else {
       setWords([]);
     }
-  };
+  }, [fetchWords]);
 
-  const loadBookmarks = async () => {
+  const loadBookmarks = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch('/api/words/bookmarks');
       if (!response.ok) throw new Error('즐겨찾기 목록을 불러오지 못했습니다.');
 
-      const data = await response.json();
-      const mapped: Word[] = data.map((item: any) => ({
+      const data = await response.json() as ProgressWordItem[];
+      const mapped: Word[] = data.map((item) => ({
         seq: item.seq,
         word: item.word,
-        partOfSpeech: item.partOfSpeech,
+        partOfSpeech: item.partOfSpeech ?? '',
         meaning: item.meaning,
       }));
       setWords(mapped);
@@ -94,21 +103,21 @@ export const WordListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadWrongs = async () => {
+  const loadWrongs = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const response = await fetch('/api/words/wrongs');
       if (!response.ok) throw new Error('오답 목록을 불러오지 못했습니다.');
 
-      const data = await response.json();
+      const data = await response.json() as ProgressWordItem[];
       const sorted = [...data].sort((a, b) => (b.wrongCount ?? 0) - (a.wrongCount ?? 0));
-      const mapped: Word[] = sorted.map((item: any) => ({
+      const mapped: Word[] = sorted.map((item) => ({
         seq: item.seq,
         word: item.word,
-        partOfSpeech: item.partOfSpeech,
+        partOfSpeech: item.partOfSpeech ?? '',
         meaning: `${item.meaning} (오답 ${item.wrongCount ?? 0}회)`,
       }));
       setWords(mapped);
@@ -118,9 +127,9 @@ export const WordListPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     if (listMode === 'bookmark') {
       await loadBookmarks();
       return;
@@ -132,7 +141,7 @@ export const WordListPage = () => {
     }
 
     await loadRangeWords(1, RANGE_SIZE);
-  };
+  }, [listMode, loadBookmarks, loadRangeWords, loadWrongs]);
 
   const scrollListTop = () => {
     const run = () => {
@@ -197,13 +206,16 @@ export const WordListPage = () => {
       setCustomRangeMode(false);
     }
     loadInitialData();
-  }, [listMode]);
+  }, [listMode, loadInitialData]);
 
   useEffect(() => {
-    if (!customRangeMode && listMode === 'all') {
+    const customRangeModeChanged = prevCustomRangeModeRef.current !== customRangeMode;
+    prevCustomRangeModeRef.current = customRangeMode;
+
+    if (customRangeModeChanged && !customRangeMode && listMode === 'all') {
       loadInitialData();
     }
-  }, [customRangeMode]);
+  }, [customRangeMode, listMode, loadInitialData]);
 
   const filteredWords = words.filter((w) => {
     if (!searchTerm.trim()) return true;

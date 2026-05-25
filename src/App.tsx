@@ -5,6 +5,7 @@ import { WordStudyPage } from './pages/WordStudyPage';
 import { WordListPage } from './pages/WordListPage';
 import NormalPage from './pages/NormalPage';
 import { Navigation } from './components/Navigation';
+import './App.css';
 
 function ColorSchemeToggle() {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
@@ -26,13 +27,13 @@ function App() {
   return (
     <Router>
       <AppShell padding="xs">
-        <Container size="sm" px={6}>
-          <Group justify="space-between" mb={8}>
-            <Text fw={800} c="blue.1" style={{ letterSpacing: 0.2 }}>Words</Text>
+        <Container className="app-shell-container" size="sm" px={6}>
+          <Group className="app-topbar" justify="space-between" mb={8}>
+            <Text fw={800} c="blue.1" style={{ letterSpacing: 0 }}>Words</Text>
             <ColorSchemeToggle />
           </Group>
 
-          <Box mb="sm">
+          <Box className="app-nav-wrap" mb="sm">
             <Navigation />
           </Box>
 
